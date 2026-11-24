@@ -1,72 +1,146 @@
 import { useState, useEffect } from 'react';
 import {
-  Table
+  Table,
+  Form,
+  Button,
+  Alert
 } from 'react-bootstrap';
 import { FaPlus } from 'react-icons/fa';
 import { FaMagnifyingGlass } from 'react-icons/fa6';
 
 const InstituicaoEnsino = () => {
-  // let [instituicoesEnsino, setInstituicoesEnsino] = useState([
-  //   { nome: 'IFPB - Guarabira' },
-  //   { nome: 'IFPB - Cajazeiras' },
-  // ]);
 
-  // const buscarHandleClick = (event) => {};
-
-  // const handleClickAdicionarIE = (event) => {
-  //   console.log('Adicionando uma IE');
-  //   let instituicaoEnsino = { nome: 'IFPB - Campina Grande' };
-  //   // instituicoesEnsino.push(instituicaoEnsino);
-  //   setInstituicoesEnsino([...instituicoesEnsino, instituicaoEnsino]);
-  // };
-  // return (
-  //   <>
-  //     <Row className="pt-4">
-  //       <Col xs="10" lg="10">
-  //         <Form.Control type="text" placeholder="Busca" />
-  //       </Col>
-  //       <Col xs="2" lg="2" className="d-flex gap-2">
-  //         <OverlayTrigger placement="top" overlay={<Tooltip>Buscar</Tooltip>}>
-  //           <Button onClick={buscarHandleClick}>
-  //             <FaMagnifyingGlass />
-  //           </Button>
-  //         </OverlayTrigger>
-  //         <OverlayTrigger
-  //           placement="top"
-  //           overlay={<Tooltip>Adicionar</Tooltip>}
-  //         >
-  //           <Button onClick={handleClickAdicionarIE}>
-  //             <FaPlus />
-  //           </Button>
-  //         </OverlayTrigger>
-  //       </Col>
-  //     </Row>
-
-  //     <Table striped bordered hover>
-  //       <thead>
-  //         <tr>
-  //           <th>#</th>
-  //           <th>Nome</th>
-  //         </tr>
-  //       </thead>
-  //       <tbody>
-  //         {instituicoesEnsino.map((instituicaoEnsino, i) => {
-  //           return (
-  //             <tr key={i}>
-  //               <td>{i + 1}</td>
-  //               <td>{instituicaoEnsino.nome}</td>
-  //             </tr>
-  //           );
-  //         })}
-  //       </tbody>
-  //     </Table>
-  //   </>
-  // );
 
  const [instituicoes, setInstituicoes] = useState([]);
 
+    const [nomeInstituicao, setNomeInstituicao] = useState('');
+    const [mensagem, setMensagem] = useState('');
+
+    const [idEditando, setIdEditando] = useState(null);
+
+        const excluirInstituicao = async (id) => {
+            const confirmar = window.confirm(
+                'Are u sure about that?'
+            );
+
+            if (!confirmar) {
+                return;
+            }
+
+            try {
+                const resposta = await fetch(
+                    `http://localhost:3000/instituicoes/${id}`,
+                    {
+                        method: 'DELETE'
+                    }
+                );
+
+                if (!resposta.ok) {
+                    throw new Error('consegui n');
+                }
+
+                setInstituicoes(atual =>
+                    atual.filter(item => item.id !== id)
+                );
+
+                setMensagem('foi de vapo!');
+
+            } catch (erro) {
+                console.log(erro);
+                setMensagem(erro.message);
+            }
+        };
+
+        const salvarEdicao = async (e) => {
+        e.preventDefault();
+
+        const nome = nomeInstituicao.trim();
+
+        if (!nome) {
+            setMensagem('Digite o nome da instituiçao.');
+            return;
+        }
+
+        try {
+            const resposta = await fetch(
+                `http://localhost:3000/instituicoes/${idEditando}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        no_entidade: nome
+                    })
+                }
+            );
+
+            const dadosResposta = await resposta.json();
+
+            if (!resposta.ok) {
+                throw new Error('Erro ao editar instituiçao.');
+            }
+
+            setInstituicoes(atual =>
+                atual.map(item =>
+                    item.id === idEditando
+                        ? { ...item, ...dadosResposta }
+                        : item
+                )
+            );
+
+            setMensagem('Instituiçao atualizada com sucesso!');
+            setNomeInstituicao('');
+            setIdEditando(null);
+
+        } catch (erro) {
+            setMensagem(erro.message);
+        }
+    };
+
+    const cadastrarInstituicao = async (e) => {
+    e.preventDefault();
+
+    const nome = nomeInstituicao.trim();
+
+    if (!nome) {
+        setMensagem('Digite o nome da instituição.');
+        return;
+    }
+
+    try {
+        const resposta = await fetch('http://localhost:3000/instituicoes', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                no_entidade: nome
+            })
+        });
+
+        const dadosResposta = await resposta.json();
+
+        console.log('Status:', resposta.status);
+        console.log('Resposta do servidor:', dadosResposta);
+
+        if (!resposta.ok) {
+            throw new Error('Erro ao cadastrar instituição.');
+        }
+
+        setMensagem('Instituição cadastrada com sucesso!');
+        setNomeInstituicao('');
+
+    } catch (erro) {
+        console.log(erro);
+        setMensagem(erro.message);
+    }
+
+
+    };
+
     useEffect(() => {
-        fetch('/instituicoes_pb_2025.json')
+        fetch('http://localhost:3000/instituicoes')
             .then(resposta => resposta.json())
             .then(dados => {
                 const maiores = dados
@@ -79,36 +153,85 @@ const InstituicaoEnsino = () => {
             .catch(erro => console.log('deu erro paizao, conserta ai', erro));
     }, []);
 
+    const editarInstituicao = (item) => {
+        setIdEditando(item.id);
+        setNomeInstituicao(item.no_entidade);
+        setMensagem('');
+    };
+
     return (
-        <div>
-            <h2 className="mt-4 mb-3">
-                Top 10 Maiores Matrículas das Instuiçoes da Paraíba
-            </h2>
+        
+            <div>
+                <h2 className="mt-4 mb-3">
+                    Top 10 Maiores Matrículas das Instuiçoes da Paraíba
+                </h2>
 
-            <Table striped bordered hover responsive>
-                <thead>
-                    <tr>
-                        <th>Posiçao</th>
-                        <th>Instituiçao</th>
-                        <th>Municipio</th>
-                        <th>Matriculas</th>
-                    </tr>
-                </thead>
+                <Form onSubmit={idEditando ? salvarEdicao : cadastrarInstituicao}>
 
-                <tbody>
-                    {instituicoes.map((item, index) => (
-                        <tr key={item.co_entidade}>
-                            <td>{index + 1}º</td>
-                            <td>{item.no_entidade}</td>
-                            <td>{item.no_municipio}</td>
-                            <td>
-                                {item.qt_mat_bas.toLocaleString('pt-BR')}
-                            </td>
+                    <Form.Group className="mb-3">
+                        <Form.Label>Nome da instituiçao</Form.Label>
+
+                        <Form.Control
+                            type="text"
+                            placeholder="Digite o nome da instituiçao"
+                            value={nomeInstituicao}
+                            onChange={(e) => setNomeInstituicao(e.target.value)}
+                        />
+                    </Form.Group>
+
+                    <Button type="submit" variant="primary">
+                        {idEditando ? 'Salvar alteraçaes' : 'Cadastrar instituiçao'}
+                    </Button>
+
+                </Form>
+
+                {mensagem && (
+                    <Alert variant="info">
+                        {mensagem}
+                    </Alert>
+                )}
+
+                <Table striped bordered hover responsive >
+                    <thead>
+                        <tr>
+                            <th>Posiçao</th>
+                            <th>Instituiçao</th>
+                            <th>Municipio</th>
+                            <th>Matriculas</th>
+                            <th>Açoes</th>
                         </tr>
-                    ))}
-                </tbody>
-            </Table>
-        </div>
+                    </thead>
+
+                    <tbody>
+                        {instituicoes.map((item, index) => (
+                            <tr key={item.co_entidade}>
+                                <td>{index + 1}º</td>
+                                <td>{item.no_entidade}</td>
+                                <td>{item.no_municipio}</td>
+                                <td>
+                                    {item.qt_mat_bas.toLocaleString('pt-BR')}
+                                </td>
+                                <td>
+                                <Button
+                                    variant="warning"
+                                    size="sm"
+                                    onClick={() => editarInstituicao(item)}
+                                >
+                                    Editar
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="sm"
+                                    onClick={() => excluirInstituicao(item.id)}
+                                >
+                                    Excluir
+                                </Button>
+                            </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </Table>
+            </div>  
     );
 };
 
